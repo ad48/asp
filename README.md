@@ -1,16 +1,16 @@
 
 # arxiv sanity preserver
 
-This project has been adapted from a version of Andrej Karpathy's _ArXiv Sanity Preserver_: a web interface that attempts to tame the overwhelming flood of papers on Arxiv. I used _ArXiv Sanity_ as a template to teach myself Flask apps - along with Miguel Grinberg's excellent book. This app served for several months at gr-asp.net.  However, at the time of writing the app is no longer serving.
+This project has been adapted from a version of Andrej Karpathy's _ArXiv Sanity Preserver_: a web interface that attempts to tame the overwhelming flood of papers on Arxiv. I used _ArXiv Sanity_ as a template to teach myself Flask apps - along with Miguel Grinberg's excellent book on this subject. This app served for several months at gr-asp.net.  However, at the time of writing the app is no longer serving.
 
 This app differs from the original ArXiv Sanity in a number of ways:
 - app serves with https instead of http
 - Users now log in with ORCID. This is safer than sending passwords over an http connection and also allows unambiguous identification of individuals.
 - ORCID records are used to find an author's publication history.  Those articles are classified using an SVM.  This SVM is used to identify related new articles and serve them to the user.
 - Some organisational changes have been made to the code to bring it more in-line with advice in Miguel Grinberg's book.
-- There hasn't been much in the way of testing, so if these changes have caused new bugs to arise, I haven't checked for that.
+- There hasn't been much in the way of testing and debugging, so if these changes have caused new bugs to arise, I haven't checked thoroughly for that.
 
-It allows researchers to keep track of recent papers, search for papers, sort papers by similarity to any paper, see recent popular papers, to add papers to a personal library, and to get personalized recommendations of (new or old) Arxiv papers. This code is currently running live at [www.arxiv-sanity.com/](http://www.arxiv-sanity.com/), where it's serving 25,000+ Arxiv papers from Machine Learning (cs.[CV|AI|CL|LG|NE]/stat.ML) over the last ~3 years. With this code base you could replicate the website to any of your favorite subsets of Arxiv by simply changing the categories in `fetch_papers.py`.
+This app allows researchers to keep track of recent papers, search for papers, sort papers by similarity to any paper, see recent popular papers, to add papers to a personal library, and to get personalized recommendations of (new or old) Arxiv papers. This code is currently running live at [www.arxiv-sanity.com/](http://www.arxiv-sanity.com/), where it's serving 25,000+ Arxiv papers from Machine Learning (cs.[CV|AI|CL|LG|NE]/stat.ML) over the last ~3 years. With this code base you could replicate the website to any of your favorite subsets of Arxiv by simply changing the categories in `fetch_papers.py`.
 
 ![user interface](https://raw.github.com/karpathy/arxiv-sanity-preserver/master/ui.jpeg)
 
@@ -93,7 +93,7 @@ $ sudo apt-get install software-properties-common
 $ sudo add-apt-repository ppa:certbot/certbot
 $ sudo apt-get update
 $ sudo apt-get install certbot
-$ sudo certbot certonly --manual -d gr-asp.net --email adamday1284@gmail.com --preferred-challenges dns-01
+$ sudo certbot certonly --manual -d gr-asp.net --email INSERTYOUREMAILHERE --preferred-challenges dns-01
 
 Note that this command requires following some manual steps and then you need to update the DNS settings in Route 53.  Remember to wait a few minutes between updating Route 53 and completing the test since AWS takes a few minutes to update.
 
