@@ -2,7 +2,7 @@
 Periodically checks Twitter for tweets about arxiv papers we recognize
 and logs the tweets into mongodb database "arxiv", under "tweets" collection.
 """
-from config import Config as config
+from ..config import Config
 import os
 import re
 import pytz
@@ -79,8 +79,8 @@ print('mongodb tweets_top30 collection size:', tweets_top30.count())
 
 # load banned accounts
 banned = {}
-if os.path.isfile(config.BANNED_PATH):
-    with open(config.BANNED_PATH, 'r') as f:
+if os.path.isfile(app.config['BANNED_PATH']):
+    with open(app.config['BANNED_PATH'], 'r') as f:
         lines = f.read().split('\n')
     for l in lines:
         if l: banned[l] = 1 # mark banned
@@ -93,10 +93,10 @@ while True:
     dnow_utc = datetime.datetime.now(datetime.timezone.utc)
 
     # fetch all database arxiv pids that we know about (and handle an upadte of the db file)
-    if last_db_load is None or os.stat(config.DB_PATH).st_mtime > last_db_load:
+    if last_db_load is None or os.stat(app.config['DB_PATH']).st_mtime > last_db_load:
         last_db_load = time.time()
-        print('(re-) loading the paper database', config.DB_PATH)
-        db = pickle.load(open(config.DB_PATH, 'rb'))
+        print('(re-) loading the paper database', app.config['DB_PATH'])
+        db = pickle.load(open(app.config['DB_PATH'], 'rb'))
 
     # fetch the latest mentioning arxiv.org
     results = get_latest_or_loop('arxiv.org')

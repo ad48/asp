@@ -4,7 +4,7 @@ The script is intended to enrich an existing database pickle (by default db.p),
 so this file will be loaded first, and then new results will be added to it.
 """
 # import app
-# from config import Config
+from config import Config as config
 import os
 import time
 import pickle
@@ -12,8 +12,47 @@ import random
 import argparse
 import urllib.request
 import feedparser
+import requests
+import sqlite3
+from utils import safe_pickle_dump
 
-from utils import safe_pickle_dump, Config
+
+# import app
+
+def chunks(l, n):
+    # For item i in a range that is a length of l,
+    for i in range(0, len(l), n):
+        # Create an index range for l of n items:
+        yield l[i:i+n]
+
+def get_api_data(batch):
+    '''Retrieve API data for a particular preprint id'''
+    l = ','.join(batch)
+    url = r'http://export.arxiv.org/api/query?id_list={}&max_results={}'.format(l,len(batch))
+    data = requests.get(url).text
+    js = feedparser.parse(data)
+    return js
+
+
+def arx_data_from_pids(pids, batch_size=100):
+    '''
+    Retrieves data in batches of 100 from ArXiv.
+    '''
+    arx_data = []
+    k=0
+    for batch_pids in chunks(pids,batch_size):
+        # sleep 3s between api calls
+        time.sleep(3)
+        api_output = get_api_data(batch_pids)
+        api_output = api_output['entries']
+
+        # i=0
+        for item in api_output:
+            arx_data.append(item)
+            # i+=1
+            k+=1
+        print(k, ' items processed')
+    return arx_data
 
 def encode_feedparser_dict(d):
     """
@@ -52,10 +91,10 @@ if __name__ == "__main__":
                       default='cat:gr-qc',
                       help='query used for arxiv API. See http://arxiv.org/help/api/user-manual#detailed_examples')
     parser.add_argument('--start-index', type=int, default=0, help='0 = most recent API result')
-    parser.add_argument('--max-index', type=int, default=400, help='upper bound on paper index we will fetch')
+    parser.add_argument('--max-index', type=int, default=500, help='upper bound on paper index we will fetch')
     parser.add_argument('--results-per-iteration', type=int, default=100, help='passed to arxiv API')
     parser.add_argument('--wait-time', type=float, default=5.0, help='lets be gentle to arxiv API (in number of seconds)')
-    parser.add_argument('--break-on-no-added', type=int, default=0, help='break out early if all returned query papers are already in db? 1=yes, 0=no')
+    parser.add_argument('--break-on-no-added', type=int, default=200, help='break out early if all returned query papers are already in db? 1=yes, 0=no')
     args = parser.parse_args()
 
     # misc hardcoded variables
@@ -64,17 +103,72 @@ if __name__ == "__main__":
 
     # lets load the existing database to memory
     try:
-        db = pickle.load(open(Config.DB_PATH, 'rb'))
+        db = pickle.load(open(config.DB_PATH, 'rb'))
     except Exception as e:
         print('error loading existing database:')
         print(e)
         print('starting from an empty database')
         db = {}
+        # time.sleep(5)  # useful in debugging
 
     # -----------------------------------------------------------------------------
     # main loop where we fetch the new results
     print('database has %d entries at start' % (len(db), ))
     num_added_total = 0
+
+
+    # -----------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------
+
+    # AD Edit
+    # add preprints from users' publication histories
+    if not os.path.isfile(config.DATABASE_PATH):
+        print("the database file as.db should exist. You can create an empty database with sqlite3 as.db < schema.sql")
+        sys.exit()
+
+    sqldb = sqlite3.connect(config.DATABASE_PATH)
+    sqldb.row_factory = sqlite3.Row # to return dicts rather than tuples
+
+    def query_db(query, args=(), one=False):
+        """Queries the database and returns a list of dictionaries."""
+        cur = sqldb.execute(query, args)
+        rv = cur.fetchall()
+        return (rv[0] if rv else None) if one else rv
+
+    publications = query_db('''select * from publication''')
+    pids = []
+    for publication in publications:
+        pid = publication['paper_id']
+        pids.append(pid)
+    pids = list(set(pids))
+    # print('pids', pids)
+
+    parse = arx_data_from_pids(pids=pids,batch_size=100)
+    # print('PARSE', parse)
+    num_added = 0
+    num_skipped = 0
+    for e in parse:
+
+        j = encode_feedparser_dict(e)
+        # print('j', j)
+        # extract just the raw arxiv id and version for this paper
+        rawid, version = parse_arxiv_url(j['id'])
+        j['_rawid'] = rawid
+        j['_version'] = version
+
+        # add to our database if we didn't have it before, or if this is a new version
+        if not rawid in db or j['_version'] > db[rawid]['_version']:
+            db[rawid] = j
+            print('Updated %s added %s' % (j['updated'].encode('utf-8'), j['title'].encode('utf-8')))
+            num_added += 1
+            num_added_total += 1
+        else:
+            num_skipped += 1
+
+
+    # -----------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------
+
     for i in range(args.start_index, args.max_index, args.results_per_iteration):
 
         print("Results %i - %i" % (i,i+args.results_per_iteration))
@@ -120,5 +214,5 @@ if __name__ == "__main__":
 
     # save the database before we quit, if we found anything new
     if num_added_total > 0:
-        print('Saving database with %d papers to %s' % (len(db), Config.DB_PATH))
-        safe_pickle_dump(db, Config.DB_PATH)
+        print('Saving database with %d papers to %s' % (len(db), config.DB_PATH))
+        safe_pickle_dump(db, config.DB_PATH)

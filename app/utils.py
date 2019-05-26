@@ -2,31 +2,16 @@ from contextlib import contextmanager
 
 import os
 import re
+import json
 import pickle
 import tempfile
+# get current y/mo
+from datetime import datetime as dt
+import feedparser
+import requests
 
-# global settings
-# -----------------------------------------------------------------------------
-class Config(object):
-    # main paper information repo file
-    db_path = 'db.p'
-    # intermediate processing folders
-    pdf_dir = os.path.join('data', 'pdf')
-    txt_dir = os.path.join('data', 'txt')
-    thumbs_dir = os.path.join('static', 'thumbs')
-    # intermediate pickles
-    tfidf_path = 'tfidf.p'
-    meta_path = 'tfidf_meta.p'
-    sim_path = 'sim_dict.p'
-    user_sim_path = 'user_sim.p'
-    # sql database file
-    db_serve_path = 'db2.p' # an enriched db.p with various preprocessing info
-    database_path = 'as.db'
-    serve_cache_path = 'serve_cache.p'
-    
-    beg_for_hosting_money = 1 # do we beg the active users randomly for money? 0 = no.
-    banned_path = 'banned.txt' # for twitter users who are banned
-    tmp_dir = 'tmp'
+import shutil
+
 
 # Context managers for atomic writes courtesy of
 # http://stackoverflow.com/questions/2333872/atomic-writing-to-file-with-python
@@ -80,8 +65,12 @@ def open_atomic(filepath, *args, **kwargs):
             yield f
             if fsync:
                 f.flush()
-                os.fsync(file.fileno())
-        os.rename(tmppath, filepath)
+                os.fsync(file.fileno())  # originally file.fileno() try f.fileno?
+        try:
+            os.rename(tmppath, filepath)
+        except:
+            # above doesn't always work - think it's a windows problem.  Shutil seems to solve the problem.
+            shutil.move(tmppath, filepath)
 
 def safe_pickle_dump(obj, fname):
     with open_atomic(fname, 'wb') as f:
@@ -99,3 +88,49 @@ def strip_version(idstr):
 # "1511.08198v1" is an example of a valid arxiv id that we accept
 def isvalidid(pid):
   return re.match('^\d+\.\d+(v\d+)?$', pid)
+
+
+
+
+def pidify(entry):
+    entry = entry['id']
+    prefix = 'http://arxiv.org/abs/'
+    prefix_end =  len(prefix)
+    pid = entry[prefix_end:entry.rfind('v')]
+    return pid
+
+def check_pid_recent(pid):
+    if pid[0].isdigit()==False: # drop anything with old style pid format
+        return False
+    now = dt.now()
+    current_year = int(str(now.year)[-2:])
+    current_month = int(now.month)
+    y = int(pid[:2])
+    m = int(pid[2:4])
+    if y > current_year-3 or (y ==current_year-3 and m <= current_month):
+        return True
+    else:
+        return False
+
+def get_recent_work(orcid):
+    url = "https://arxiv.org/a/"+orcid+'.atom2'
+    r = requests.get(url)
+    js = feedparser.parse(r.text)
+    entries = js['entries']
+    dct = {}
+    if len(entries)>0:
+        for entry in entries:
+            pid = pidify(entry)
+
+            if check_pid_recent(pid)==True:
+                try:
+                    doi = entry['arxiv_doi']
+                except:
+                    doi = ''
+                dct[pid] = doi
+            else:
+                pass
+    else:
+        pass
+
+    return dct

@@ -1,9 +1,20 @@
 
 # arxiv sanity preserver
 
-This project is a web interface that attempts to tame the overwhelming flood of papers on Arxiv. It allows researchers to keep track of recent papers, search for papers, sort papers by similarity to any paper, see recent popular papers, to add papers to a personal library, and to get personalized recommendations of (new or old) Arxiv papers. This code is currently running live at [www.arxiv-sanity.com/](http://www.arxiv-sanity.com/), where it's serving 25,000+ Arxiv papers from Machine Learning (cs.[CV|AI|CL|LG|NE]/stat.ML) over the last ~3 years. With this code base you could replicate the website to any of your favorite subsets of Arxiv by simply changing the categories in `fetch_papers.py`.
+This project has been adapted from a version of Andrej Karpathy's _ArXiv Sanity Preserver_: a web interface that attempts to tame the overwhelming flood of papers on Arxiv. I used _ArXiv Sanity_ as a template to teach myself Flask apps - along with Miguel Grinberg's excellent book. This app served for several months at gr-asp.net.  However, at the time of writing the app is no longer serving.
+
+This app differs from the original ArXiv Sanity in a number of ways:
+- app serves with https instead of http
+- Users now log in with ORCID. This is safer than sending passwords over an http connection and also allows unambiguous identification of individuals.
+- ORCID records are used to find an author's publication history.  Those articles are classified using an SVM.  This SVM is used to identify related new articles and serve them to the user.
+- Some organisational changes have been made to the code to bring it more in-line with advice in Miguel Grinberg's book.
+- There hasn't been much in the way of testing, so if these changes have caused new bugs to arise, I haven't checked for that.
+
+It allows researchers to keep track of recent papers, search for papers, sort papers by similarity to any paper, see recent popular papers, to add papers to a personal library, and to get personalized recommendations of (new or old) Arxiv papers. This code is currently running live at [www.arxiv-sanity.com/](http://www.arxiv-sanity.com/), where it's serving 25,000+ Arxiv papers from Machine Learning (cs.[CV|AI|CL|LG|NE]/stat.ML) over the last ~3 years. With this code base you could replicate the website to any of your favorite subsets of Arxiv by simply changing the categories in `fetch_papers.py`.
 
 ![user interface](https://raw.github.com/karpathy/arxiv-sanity-preserver/master/ui.jpeg)
+
+
 
 ### Code layout
 
@@ -46,6 +57,10 @@ I have a simple shell script that runs these commands one by one, and every day 
 
 ### Running online
 
+Due to the adaptations in this version of the app, there are a few differences in how it is run online.
+- https certification can be done in a number of ways.  I used AWS and followed these guidelines https://blog.miguelgrinberg.com/post/running-your-flask-application-over-https (this took some time for me to get right, more detailed instrucitons on https are below)
+- ORCID authentication can be done by registering at the ORCID site. https://members.orcid.org/api/oauth2 Note that, for large applications, ORCID membership may be required. I stored my orcid credentials in a json file `orcid_credentials.json`.  However, it may be better to put the credentials in environment variables.
+
 If you'd like to run the flask server online (e.g. AWS) run it as `python serve.py --prod`.
 
 You also want to create a `secret_key.txt` file and fill it with random text (see top of `serve.py`).
@@ -71,3 +86,34 @@ python serve.py --prod --port 80
 ```
 
 The server will load the new files and begin hosting the site. Note that on some systems you can't use port 80 without `sudo`. Your two options are to use `iptables` to reroute ports or you can use [setcap](http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l) to elavate the permissions of your `python` interpreter that runs `serve.py`. In this case I'd recommend careful permissions and maybe virtualenv, etc.
+
+### Running with HTTPS
+1. Obtain a certificate from a certificate authority
+$ sudo apt-get install software-properties-common
+$ sudo add-apt-repository ppa:certbot/certbot
+$ sudo apt-get update
+$ sudo apt-get install certbot
+$ sudo certbot certonly --manual -d gr-asp.net --email adamday1284@gmail.com --preferred-challenges dns-01
+
+Note that this command requires following some manual steps and then you need to update the DNS settings in Route 53.  Remember to wait a few minutes between updating Route 53 and completing the test since AWS takes a few minutes to update.
+
+2. Modify serve.py to serve https over port 443.  Remember that there are some new dependecies: flask_sslify  
+
+<!-- if Config.https==1:
+    import ssl
+    from flask_sslify import SSLify
+    sslify = SSLify(app)
+    # ssl from http://www.tornadoweb.org/en/stable/httpserver.html
+    ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_ctx.load_cert_chain('/etc/letsencrypt/live/[DOMAIN]/cert.pem',
+                        '/etc/letsencrypt/live/[DOMAIN]/privkey.pem')
+
+    http_server = HTTPServer(WSGIContainer(app),
+                            protocol = 'https',
+                            ssl_options = ssl_ctx)
+    http_server.listen(args.port) -->
+
+3. launch the server differently.
+$ sudo venv/bin/python --prod --port 443
+
+Note that it can take a while for the page to load after you start the server.

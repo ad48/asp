@@ -127,7 +127,7 @@ h1 {
 	display: block;
 }
 #qfield {
-  border: 5px solid white; 
+  border: 5px solid white;
   width: 950px;
   border: solid 1px #999;
 
@@ -275,7 +275,7 @@ ul.flashes li {
 	border-left: 1px solid #AAA;
 	border-right: 1px solid #AAA;
 	border-top: 1px solid #AAA;
-	
+
 	padding: 10px 5px 10px 5px;
 	background-color: #FFF;
 }
@@ -447,7 +447,7 @@ ul.flashes li {
 }
 .caction {
 	display:inline-block;
-	float:right; 
+	float:right;
 	padding:2px;
 }
 .caction img {
@@ -459,3 +459,30 @@ ul.flashes li {
   padding: 2px;
   font-size: 14px;
 }
+#connect-orcid-button{
+	border: 1px solid #D3D3D3;
+	padding: .3em;
+	background-color: #fff;
+	border-radius: 8px;
+	box-shadow: 1px 1px 3px #999;
+	cursor: pointer;
+	color: #999;
+	font-weight: bold;
+	font-size: .8em;
+	line-height: 24px;
+	vertical-align: middle;
+}
+
+#connect-orcid-button:hover{
+	border: 1px solid #338caf;
+	color: #338caf;
+}
+
+#orcid-id-icon{
+	display: block;
+	margin: 0 .5em 0 0;
+	padding: 0;
+	float: left;
+}
+
+/*  */
