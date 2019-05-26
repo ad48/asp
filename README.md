@@ -93,7 +93,7 @@ $ sudo apt-get install software-properties-common
 $ sudo add-apt-repository ppa:certbot/certbot
 $ sudo apt-get update
 $ sudo apt-get install certbot
-$ sudo certbot certonly --manual -d gr-asp.net --email INSERTYOUREMAILHERE --preferred-challenges dns-01
+$ sudo certbot certonly --manual -d INSERTYOURDOMAINHERE --email INSERTYOUREMAILHERE --preferred-challenges dns-01
 
 Note that this command requires following some manual steps and then you need to update the DNS settings in Route 53.  Remember to wait a few minutes between updating Route 53 and completing the test since AWS takes a few minutes to update.
 
